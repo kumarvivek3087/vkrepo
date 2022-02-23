@@ -1,0 +1,222 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.4.451.19169",
+      "templateHash": "4823226843393542211"
+    }
+  },
+  "parameters": {
+    "deploymentPrefix": {
+      "type": "string",
+      "defaultValue": "acad",
+      "maxLength": 6,
+      "metadata": {
+        "description": "Resource names prefix, it will be used in storage account name, only letters and digits allowed."
+      }
+    },
+    "appInsightsLocation": {
+      "type": "string",
+      "defaultValue": "[resourceGroup().location]",
+      "metadata": {
+        "description": "Azure region for App Insights, defaults to is resource group location."
+      }
+    },
+    "scopes": {
+      "type": "string",
+      "metadata": {
+        "description": "One or many scopes for the cost api query separated by a comma (,). ex: subscriptions/5f1c1322-cebc-4ea3-8779-fac7d666e18f. Reference here: https://docs.microsoft.com/en-us/rest/api/cost-management/query/usage"
+      }
+    },
+    "packageUri": {
+      "type": "string",
+      "defaultValue": "https://github.com/slapointe/azure-cost-anomalydetection.git",
+      "metadata": {
+        "description": "Function app package repository URI."
+      }
+    },
+    "packageBranch": {
+      "type": "string",
+      "defaultValue": "main",
+      "metadata": {
+        "description": "Function app package repository branch."
+      }
+    },
+    "workbookDisplayName": {
+      "type": "string",
+      "defaultValue": "Azure Cost Anomaly detection",
+      "metadata": {
+        "description": "Display name for the cost anomaly workbook."
+      }
+    }
+  },
+  "functions": [],
+  "variables": {
+    "uniqueHash": "[uniqueString(resourceGroup().id)]",
+    "laName": "[format('{0}-la-{1}', parameters('deploymentPrefix'), variables('uniqueHash'))]",
+    "appName": "[format('{0}-costingestionfunc-{1}', parameters('deploymentPrefix'), variables('uniqueHash'))]",
+    "appInsightsName": "[format('{0}-ai-{1}', parameters('deploymentPrefix'), variables('uniqueHash'))]",
+    "saName": "[toLower(format('{0}0sa0{1}', parameters('deploymentPrefix'), variables('uniqueHash')))]",
+    "wbName": "[format('{0}-wb-{1}', parameters('deploymentPrefix'), variables('uniqueHash'))]"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Web/sites/sourcecontrols",
+      "apiVersion": "2021-01-15",
+      "name": "[format('{0}/{1}', variables('appName'), 'web')]",
+      "properties": {
+        "repoUrl": "[parameters('packageUri')]",
+        "branch": "[parameters('packageBranch')]",
+        "isManualIntegration": true
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/sites', variables('appName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.OperationalInsights/workspaces",
+      "apiVersion": "2021-06-01",
+      "name": "[variables('laName')]",
+      "location": "[resourceGroup().location]",
+      "properties": {
+        "sku": {
+          "name": "PerGB2018"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Insights/components",
+      "apiVersion": "2020-02-02",
+      "name": "[variables('appInsightsName')]",
+      "location": "[parameters('appInsightsLocation')]",
+      "kind": "web",
+      "properties": {
+        "Application_Type": "web"
+      }
+    },
+    {
+      "type": "Microsoft.Storage/storageAccounts",
+      "apiVersion": "2021-04-01",
+      "name": "[variables('saName')]",
+      "location": "[resourceGroup().location]",
+      "sku": {
+        "name": "Standard_LRS"
+      },
+      "kind": "Storage"
+    },
+    {
+      "type": "Microsoft.Web/serverfarms",
+      "apiVersion": "2021-01-15",
+      "name": "[variables('appName')]",
+      "location": "[resourceGroup().location]",
+      "sku": {
+        "name": "Y1",
+        "tier": "Dynamic"
+      }
+    },
+    {
+      "type": "Microsoft.Web/sites",
+      "apiVersion": "2021-01-15",
+      "name": "[variables('appName')]",
+      "location": "[resourceGroup().location]",
+      "kind": "functionapp",
+      "identity": {
+        "type": "SystemAssigned"
+      },
+      "properties": {
+        "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', variables('appName'))]",
+        "siteConfig": {
+          "ftpsState": "Disabled",
+          "appSettings": [
+            {
+              "name": "AzureWebJobsStorage",
+              "value": "[format('DefaultEndpointsProtocol=https;AccountName={0};EndpointSuffix={1};AccountKey={2}', variables('saName'), environment().suffixes.storage, listKeys(resourceId('Microsoft.Storage/storageAccounts', variables('saName')), '2021-04-01').keys[0].value)]"
+            },
+            {
+              "name": "AzureWebJobsDashboard",
+              "value": "[format('DefaultEndpointsProtocol=https;AccountName={0};EndpointSuffix={1};AccountKey={2}', variables('saName'), environment().suffixes.storage, listKeys(resourceId('Microsoft.Storage/storageAccounts', variables('saName')), '2021-04-01').keys[0].value)]"
+            },
+            {
+              "name": "WEBSITE_CONTENTAZUREFILECONNECTIONSTRING",
+              "value": "[format('DefaultEndpointsProtocol=https;AccountName={0};EndpointSuffix={1};AccountKey={2}', variables('saName'), environment().suffixes.storage, listKeys(resourceId('Microsoft.Storage/storageAccounts', variables('saName')), '2021-04-01').keys[0].value)]"
+            },
+            {
+              "name": "WEBSITE_CONTENTSHARE",
+              "value": "[toLower(variables('appName'))]"
+            },
+            {
+              "name": "FUNCTIONS_EXTENSION_VERSION",
+              "value": "~3"
+            },
+            {
+              "name": "WEBSITE_NODE_DEFAULT_VERSION",
+              "value": "~10"
+            },
+            {
+              "name": "FUNCTIONS_WORKER_RUNTIME",
+              "value": "dotnet"
+            },
+            {
+              "name": "WEBSITE_RUN_FROM_PACKAGE",
+              "value": "0"
+            },
+            {
+              "name": "logName",
+              "value": "AzureCostAnamolies"
+            },
+            {
+              "name": "scope",
+              "value": "[parameters('scopes')]"
+            },
+            {
+              "name": "workspaceid",
+              "value": "[reference(resourceId('Microsoft.OperationalInsights/workspaces', variables('laName'))).customerId]"
+            },
+            {
+              "name": "workspacekey",
+              "value": "[listKeys(resourceId('Microsoft.OperationalInsights/workspaces', variables('laName')), '2021-06-01').primarySharedKey]"
+            },
+            {
+              "name": "APPINSIGHTS_INSTRUMENTATIONKEY",
+              "value": "[reference(resourceId('Microsoft.Insights/components', variables('appInsightsName'))).InstrumentationKey]"
+            }
+          ]
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Insights/components', variables('appInsightsName'))]",
+        "[resourceId('Microsoft.Web/serverfarms', variables('appName'))]",
+        "[resourceId('Microsoft.Storage/storageAccounts', variables('saName'))]",
+        "[resourceId('Microsoft.OperationalInsights/workspaces', variables('laName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Insights/workbooks",
+      "apiVersion": "2021-03-08",
+      "name": "[guid(variables('wbName'))]",
+      "location": "[resourceGroup().location]",
+      "identity": {
+        "type": "None"
+      },
+      "kind": "shared",
+      "properties": {
+        "displayName": "[parameters('workbookDisplayName')]",
+        "category": "workbook",
+        "version": "Notebook/1.0",
+        "serializedData": "[replace('{\r\n  \"version\": \"Notebook/1.0\",\r\n  \"items\": [\r\n    {\r\n      \"type\": 1,\r\n      \"content\": {\r\n        \"json\": \"# Cost Anomalies Report  \\r\\nThis workbook utilizes the built-in anomaly detection in Azure Log Analytics to detect cost anomalies across your environment.  \\r\\n\\r\\nSelect the Log Analytics Workspace below where you are ingesting you Log Data.\"\r\n      },\r\n      \"name\": \"head\"\r\n    },\r\n    {\r\n      \"type\": 9,\r\n      \"content\": {\r\n        \"version\": \"KqlParameterItem/1.0\",\r\n        \"parameters\": [\r\n          {\r\n            \"id\": \"59e8c1df-e220-429a-b198-6bc3d143f17f\",\r\n            \"version\": \"KqlParameterItem/1.0\",\r\n            \"name\": \"Workspace\",\r\n            \"type\": 5,\r\n            \"isRequired\": true,\r\n            \"query\": \"where type == \\\"microsoft.operationalinsights/workspaces\\\"\",\r\n            \"crossComponentResources\": [\r\n              \"value::all\"\r\n            ],\r\n            \"value\": \"{{workspaceResourceId}}\",\r\n            \"typeSettings\": {\r\n              \"resourceTypeFilter\": {\r\n                \"microsoft.operationalinsights/workspaces\": true\r\n              },\r\n              \"additionalResourceOptions\": [],\r\n              \"showDefault\": false\r\n            },\r\n            \"timeContext\": {\r\n              \"durationMs\": 86400000\r\n            },\r\n            \"queryType\": 1,\r\n            \"resourceType\": \"microsoft.resourcegraph/resources\"\r\n          },\r\n          {\r\n            \"id\": \"dcfbc6ef-e3d2-4113-a9ef-a21c8763a3e2\",\r\n            \"version\": \"KqlParameterItem/1.0\",\r\n            \"name\": \"Period\",\r\n            \"type\": 2,\r\n            \"isRequired\": true,\r\n            \"value\": \"7d\",\r\n            \"typeSettings\": {\r\n              \"additionalResourceOptions\": [],\r\n              \"showDefault\": false\r\n            },\r\n            \"jsonData\": \"[\\r\\n    {\\\"label\\\":\\\"Last week\\\", \\\"value\\\": \\\"7d\\\"},\\r\\n    {\\\"label\\\":\\\"Last 2 weeks\\\", \\\"value\\\": \\\"14d\\\"},\\r\\n    {\\\"label\\\":\\\"Last 4 weeks\\\", \\\"value\\\": \\\"28d\\\"}\\r\\n]\"\r\n          },\r\n          {\r\n            \"id\": \"dd30bace-8501-4268-a410-4898913ff347\",\r\n            \"version\": \"KqlParameterItem/1.0\",\r\n            \"name\": \"MinAmount\",\r\n            \"label\": \"Minimum amount in $\",\r\n            \"type\": 1,\r\n            \"isRequired\": true,\r\n            \"value\": \"1\",\r\n            \"timeContext\": {\r\n              \"durationMs\": 86400000\r\n            }\r\n          }\r\n        ],\r\n        \"style\": \"pills\",\r\n        \"queryType\": 0,\r\n        \"resourceType\": \"microsoft.operationalinsights/workspaces\"\r\n      },\r\n      \"name\": \"parameters\"\r\n    },\r\n    {\r\n      \"type\": 3,\r\n      \"content\": {\r\n        \"version\": \"KqlItem/1.0\",\r\n        \"query\": \"let ids=AzureCostAnamolies_CL\\r\\n| extend Date=todatetime(Date_s)\\r\\n| order by Date_s\\r\\n| distinct Date,ResourceId,ResourceGroup,PreTaxCost_d\\r\\n| where PreTaxCost_d >= {MinAmount:value}\\r\\n| make-series Cost=sum(PreTaxCost_d) on Date in range(startofday(ago(90d)), endofday(ago(1d)), 1d) by ResourceGroup\\r\\n| extend outliers=series_decompose_anomalies(Cost)\\r\\n| mvexpand outliers, Date\\r\\n| where Date >= ago({Period:value})\\r\\n| where outliers>=1\\r\\n| distinct ResourceGroup;\\r\\nAzureCostAnamolies_CL\\r\\n| extend Date = todatetime(Date_s)  \\r\\n| where Date >= ago({Period:value})\\r\\n| where ResourceGroup  in (ids)\\r\\n| order by Date asc\\r\\n| make-series Cost=sum(PreTaxCost_d) on Date in range(startofday(ago({Period:value})), endofday(ago(1d)), 1d) by ResourceGroup \\r\\n| extend  outliers=series_decompose_anomalies(Cost)\\r\\n| project ResourceGroup, outliers, Cost\",\r\n        \"size\": 0,\r\n        \"title\": \"Anomalies by Resource Group ({Period:Label})\",\r\n        \"exportMultipleValues\": true,\r\n        \"exportedParameters\": [\r\n          {\r\n            \"fieldName\": \"ResourceGroup\",\r\n            \"parameterName\": \"ResourceGroup\",\r\n            \"parameterType\": 1\r\n          }\r\n        ],\r\n        \"queryType\": 0,\r\n        \"resourceType\": \"microsoft.operationalinsights/workspaces\",\r\n        \"crossComponentResources\": [\r\n          \"{Workspace}\"\r\n        ],\r\n        \"visualization\": \"table\",\r\n        \"gridSettings\": {\r\n          \"formatters\": [\r\n            {\r\n              \"columnMatch\": \"outliers\",\r\n              \"formatter\": 10,\r\n              \"formatOptions\": {\r\n                \"palette\": \"blue\"\r\n              }\r\n            },\r\n            {\r\n              \"columnMatch\": \"Cost\",\r\n              \"formatter\": 10,\r\n              \"formatOptions\": {\r\n                \"palette\": \"blue\"\r\n              }\r\n            },\r\n            {\r\n              \"columnMatch\": \"PreTaxCost\",\r\n              \"formatter\": 10,\r\n              \"formatOptions\": {\r\n                \"palette\": \"blue\"\r\n              }\r\n            },\r\n            {\r\n              \"columnMatch\": \"FailedLogins\",\r\n              \"formatter\": 10,\r\n              \"formatOptions\": {\r\n                \"palette\": \"blue\"\r\n              }\r\n            }\r\n          ]\r\n        },\r\n        \"chartSettings\": {\r\n          \"xAxis\": \"CostDate\",\r\n          \"group\": \"ResourceId\",\r\n          \"createOtherGroup\": 15,\r\n          \"xSettings\": {},\r\n          \"ySettings\": {}\r\n        }\r\n      },\r\n      \"customWidth\": \"50\",\r\n      \"name\": \"query - 0\"\r\n    },\r\n    {\r\n      \"type\": 3,\r\n      \"content\": {\r\n        \"version\": \"KqlItem/1.0\",\r\n        \"query\": \"AzureCostAnamolies_CL\\r\\n| extend UsageDateTime = todatetime(Date_s)\\r\\n| where UsageDateTime  >= startofday(ago({Period:value}))\\r\\n| distinct UsageDateTime,ResourceId,ResourceGroup,PreTaxCost_d\\r\\n| where ResourceGroup in ({ResourceGroup}) \\r\\n| summarize PreTaxCost=todouble(sum(PreTaxCost_d)) by ResourceGroup, UsageDateTime\\r\\n\",\r\n        \"size\": 0,\r\n        \"title\": \"Cost over {Period:label}\",\r\n        \"queryType\": 0,\r\n        \"resourceType\": \"microsoft.operationalinsights/workspaces\",\r\n        \"crossComponentResources\": [\r\n          \"{Workspace}\"\r\n        ],\r\n        \"visualization\": \"barchart\"\r\n      },\r\n      \"conditionalVisibility\": {\r\n        \"parameterName\": \"ResourceGroup\",\r\n        \"comparison\": \"isNotEqualTo\"\r\n      },\r\n      \"customWidth\": \"50\",\r\n      \"name\": \"query - 1\"\r\n    },\r\n    {\r\n      \"type\": 3,\r\n      \"content\": {\r\n        \"version\": \"KqlItem/1.0\",\r\n        \"query\": \"AzureCostAnamolies_CL\\r\\n| extend UsageDateTime = todatetime(Date_s)\\r\\n| where UsageDateTime  >= startofday(ago({Period:value}))\\r\\n| distinct UsageDateTime,ResourceId,ResourceGroup,PreTaxCost_d\\r\\n| where ResourceGroup in ({ResourceGroup}) \\r\\n| summarize PreTaxCost=todouble(sum(PreTaxCost_d)) by ResourceId, UsageDateTime\",\r\n        \"size\": 0,\r\n        \"title\": \"Cost by ResourceId over {Period:label}\",\r\n        \"queryType\": 0,\r\n        \"resourceType\": \"microsoft.operationalinsights/workspaces\",\r\n        \"crossComponentResources\": [\r\n          \"{Workspace}\"\r\n        ],\r\n        \"visualization\": \"linechart\"\r\n      },\r\n      \"conditionalVisibility\": {\r\n        \"parameterName\": \"ResourceGroup\",\r\n        \"comparison\": \"isNotEqualTo\"\r\n      },\r\n      \"name\": \"query - 2\"\r\n    },\r\n    {\r\n      \"type\": 3,\r\n      \"content\": {\r\n        \"version\": \"KqlItem/1.0\",\r\n        \"query\": \"AzureCostAnamolies_CL\\r\\n| extend UsageDateTime = todatetime(Date_s)\\r\\n| where UsageDateTime  >= startofday(ago({Period:value}))\\r\\n| distinct UsageDateTime,ResourceId,ResourceGroup,PreTaxCost_d\\r\\n| where ResourceGroup in ({ResourceGroup}) \\r\\n| summarize PreTaxCost=todouble(sum(PreTaxCost_d)) by ResourceId, UsageDateTime\",\r\n        \"size\": 0,\r\n        \"title\": \"Cost by ResourceId over {Period:label}\",\r\n        \"queryType\": 0,\r\n        \"resourceType\": \"microsoft.operationalinsights/workspaces\",\r\n        \"crossComponentResources\": [\r\n          \"{Workspace}\"\r\n        ],\r\n        \"visualization\": \"table\",\r\n        \"gridSettings\": {\r\n          \"sortBy\": [\r\n            {\r\n              \"itemKey\": \"PreTaxCost\",\r\n              \"sortOrder\": 2\r\n            }\r\n          ]\r\n        },\r\n        \"sortBy\": [\r\n          {\r\n            \"itemKey\": \"PreTaxCost\",\r\n            \"sortOrder\": 2\r\n          }\r\n        ],\r\n        \"tileSettings\": {\r\n          \"showBorder\": false,\r\n          \"titleContent\": {\r\n            \"columnMatch\": \"ResourceId\",\r\n            \"formatter\": 1\r\n          },\r\n          \"leftContent\": {\r\n            \"columnMatch\": \"PreTaxCost\",\r\n            \"formatter\": 12,\r\n            \"formatOptions\": {\r\n              \"palette\": \"auto\"\r\n            },\r\n            \"numberFormat\": {\r\n              \"unit\": 17,\r\n              \"options\": {\r\n                \"maximumSignificantDigits\": 3,\r\n                \"maximumFractionDigits\": 2\r\n              }\r\n            }\r\n          }\r\n        },\r\n        \"graphSettings\": {\r\n          \"type\": 0,\r\n          \"topContent\": {\r\n            \"columnMatch\": \"ResourceId\",\r\n            \"formatter\": 1\r\n          },\r\n          \"centerContent\": {\r\n            \"columnMatch\": \"PreTaxCost\",\r\n            \"formatter\": 1,\r\n            \"numberFormat\": {\r\n              \"unit\": 17,\r\n              \"options\": {\r\n                \"maximumSignificantDigits\": 3,\r\n                \"maximumFractionDigits\": 2\r\n              }\r\n            }\r\n          }\r\n        },\r\n        \"mapSettings\": {\r\n          \"locInfo\": \"AzureResource\",\r\n          \"sizeSettings\": \"PreTaxCost\",\r\n          \"sizeAggregation\": \"Sum\",\r\n          \"legendMetric\": \"PreTaxCost\",\r\n          \"legendAggregation\": \"Sum\",\r\n          \"itemColorSettings\": {\r\n            \"type\": \"heatmap\",\r\n            \"colorAggregation\": \"Sum\",\r\n            \"nodeColorField\": \"PreTaxCost\",\r\n            \"heatmapPalette\": \"greenRed\"\r\n          },\r\n          \"locInfoColumn\": \"ResourceId\"\r\n        }\r\n      },\r\n      \"conditionalVisibility\": {\r\n        \"parameterName\": \"ResourceGroup\",\r\n        \"comparison\": \"isNotEqualTo\"\r\n      },\r\n      \"name\": \"query - 3\"\r\n    }\r\n  ],\r\n  \"fallbackResourceIds\": [\r\n    \"azure monitor\"\r\n  ],\r\n  \"$schema\": \"https://github.com/Microsoft/Application-Insights-Workbooks/blob/master/schema/workbook.json\"\r\n}', '{{workspaceResourceId}}', resourceId('Microsoft.OperationalInsights/workspaces', variables('laName')))]",
+        "sourceId": "azure monitor"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.OperationalInsights/workspaces', variables('laName'))]"
+      ]
+    }
+  ],
+  "outputs": {
+    "functionAppName": {
+      "type": "string",
+      "value": "[variables('appName')]"
+    }
+  }
+}

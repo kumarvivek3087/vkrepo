@@ -1,0 +1,269 @@
+{
+  "version": "Notebook/1.0",
+  "items": [
+    {
+      "type": 1,
+      "content": {
+        "json": "# Cost Anomalies Report  \r\nThis workbook utilizes the built-in anomaly detection in Azure Log Analytics to detect cost anomalies across your environment.  \r\n\r\nSelect the Log Analytics Workspace below where you are ingesting you Log Data."
+      },
+      "name": "head"
+    },
+    {
+      "type": 9,
+      "content": {
+        "version": "KqlParameterItem/1.0",
+        "parameters": [
+          {
+            "id": "59e8c1df-e220-429a-b198-6bc3d143f17f",
+            "version": "KqlParameterItem/1.0",
+            "name": "Workspace",
+            "type": 5,
+            "isRequired": true,
+            "query": "where type == \"microsoft.operationalinsights/workspaces\"",
+            "crossComponentResources": [
+              "value::all"
+            ],
+            "value": "{{workspaceResourceId}}",
+            "typeSettings": {
+              "resourceTypeFilter": {
+                "microsoft.operationalinsights/workspaces": true
+              },
+              "additionalResourceOptions": [],
+              "showDefault": false
+            },
+            "timeContext": {
+              "durationMs": 86400000
+            },
+            "queryType": 1,
+            "resourceType": "microsoft.resourcegraph/resources"
+          },
+          {
+            "id": "dcfbc6ef-e3d2-4113-a9ef-a21c8763a3e2",
+            "version": "KqlParameterItem/1.0",
+            "name": "Period",
+            "type": 2,
+            "isRequired": true,
+            "value": "7d",
+            "typeSettings": {
+              "additionalResourceOptions": [],
+              "showDefault": false
+            },
+            "jsonData": "[\r\n    {\"label\":\"Last week\", \"value\": \"7d\"},\r\n    {\"label\":\"Last 2 weeks\", \"value\": \"14d\"},\r\n    {\"label\":\"Last 4 weeks\", \"value\": \"28d\"}\r\n]"
+          },
+          {
+            "id": "dd30bace-8501-4268-a410-4898913ff347",
+            "version": "KqlParameterItem/1.0",
+            "name": "MinAmount",
+            "label": "Minimum amount in $",
+            "type": 1,
+            "isRequired": true,
+            "value": "1",
+            "timeContext": {
+              "durationMs": 86400000
+            }
+          }
+        ],
+        "style": "pills",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces"
+      },
+      "name": "parameters"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "let ids=AzureCostAnamolies_CL\r\n| extend Date=todatetime(Date_s)\r\n| order by Date_s\r\n| distinct Date,ResourceId,ResourceGroup,PreTaxCost_d\r\n| where PreTaxCost_d >= {MinAmount:value}\r\n| make-series Cost=sum(PreTaxCost_d) on Date in range(startofday(ago(90d)), endofday(ago(1d)), 1d) by ResourceGroup\r\n| extend outliers=series_decompose_anomalies(Cost)\r\n| mvexpand outliers, Date\r\n| where Date >= ago({Period:value})\r\n| where outliers>=1\r\n| distinct ResourceGroup;\r\nAzureCostAnamolies_CL\r\n| extend Date = todatetime(Date_s)  \r\n| where Date >= ago({Period:value})\r\n| where ResourceGroup  in (ids)\r\n| order by Date asc\r\n| make-series Cost=sum(PreTaxCost_d) on Date in range(startofday(ago({Period:value})), endofday(ago(1d)), 1d) by ResourceGroup \r\n| extend  outliers=series_decompose_anomalies(Cost)\r\n| project ResourceGroup, outliers, Cost",
+        "size": 0,
+        "title": "Anomalies by Resource Group ({Period:Label})",
+        "exportMultipleValues": true,
+        "exportedParameters": [
+          {
+            "fieldName": "ResourceGroup",
+            "parameterName": "ResourceGroup",
+            "parameterType": 1
+          }
+        ],
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "crossComponentResources": [
+          "{Workspace}"
+        ],
+        "visualization": "table",
+        "gridSettings": {
+          "formatters": [
+            {
+              "columnMatch": "outliers",
+              "formatter": 10,
+              "formatOptions": {
+                "palette": "blue"
+              }
+            },
+            {
+              "columnMatch": "Cost",
+              "formatter": 10,
+              "formatOptions": {
+                "palette": "blue"
+              }
+            },
+            {
+              "columnMatch": "PreTaxCost",
+              "formatter": 10,
+              "formatOptions": {
+                "palette": "blue"
+              }
+            },
+            {
+              "columnMatch": "FailedLogins",
+              "formatter": 10,
+              "formatOptions": {
+                "palette": "blue"
+              }
+            }
+          ]
+        },
+        "chartSettings": {
+          "xAxis": "CostDate",
+          "group": "ResourceId",
+          "createOtherGroup": 15,
+          "xSettings": {},
+          "ySettings": {}
+        }
+      },
+      "customWidth": "50",
+      "name": "query - 0"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "AzureCostAnamolies_CL\r\n| extend UsageDateTime = todatetime(Date_s)\r\n| where UsageDateTime  >= startofday(ago({Period:value}))\r\n| distinct UsageDateTime,ResourceId,ResourceGroup,PreTaxCost_d\r\n| where ResourceGroup in ({ResourceGroup}) \r\n| summarize PreTaxCost=todouble(sum(PreTaxCost_d)) by ResourceGroup, UsageDateTime\r\n",
+        "size": 0,
+        "title": "Cost over {Period:label}",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "crossComponentResources": [
+          "{Workspace}"
+        ],
+        "visualization": "barchart"
+      },
+      "conditionalVisibility": {
+        "parameterName": "ResourceGroup",
+        "comparison": "isNotEqualTo"
+      },
+      "customWidth": "50",
+      "name": "query - 1"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "AzureCostAnamolies_CL\r\n| extend UsageDateTime = todatetime(Date_s)\r\n| where UsageDateTime  >= startofday(ago({Period:value}))\r\n| distinct UsageDateTime,ResourceId,ResourceGroup,PreTaxCost_d\r\n| where ResourceGroup in ({ResourceGroup}) \r\n| summarize PreTaxCost=todouble(sum(PreTaxCost_d)) by ResourceId, UsageDateTime",
+        "size": 0,
+        "title": "Cost by ResourceId over {Period:label}",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "crossComponentResources": [
+          "{Workspace}"
+        ],
+        "visualization": "linechart"
+      },
+      "conditionalVisibility": {
+        "parameterName": "ResourceGroup",
+        "comparison": "isNotEqualTo"
+      },
+      "name": "query - 2"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "AzureCostAnamolies_CL\r\n| extend UsageDateTime = todatetime(Date_s)\r\n| where UsageDateTime  >= startofday(ago({Period:value}))\r\n| distinct UsageDateTime,ResourceId,ResourceGroup,PreTaxCost_d\r\n| where ResourceGroup in ({ResourceGroup}) \r\n| summarize PreTaxCost=todouble(sum(PreTaxCost_d)) by ResourceId, UsageDateTime",
+        "size": 0,
+        "title": "Cost by ResourceId over {Period:label}",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "crossComponentResources": [
+          "{Workspace}"
+        ],
+        "visualization": "table",
+        "gridSettings": {
+          "sortBy": [
+            {
+              "itemKey": "PreTaxCost",
+              "sortOrder": 2
+            }
+          ]
+        },
+        "sortBy": [
+          {
+            "itemKey": "PreTaxCost",
+            "sortOrder": 2
+          }
+        ],
+        "tileSettings": {
+          "showBorder": false,
+          "titleContent": {
+            "columnMatch": "ResourceId",
+            "formatter": 1
+          },
+          "leftContent": {
+            "columnMatch": "PreTaxCost",
+            "formatter": 12,
+            "formatOptions": {
+              "palette": "auto"
+            },
+            "numberFormat": {
+              "unit": 17,
+              "options": {
+                "maximumSignificantDigits": 3,
+                "maximumFractionDigits": 2
+              }
+            }
+          }
+        },
+        "graphSettings": {
+          "type": 0,
+          "topContent": {
+            "columnMatch": "ResourceId",
+            "formatter": 1
+          },
+          "centerContent": {
+            "columnMatch": "PreTaxCost",
+            "formatter": 1,
+            "numberFormat": {
+              "unit": 17,
+              "options": {
+                "maximumSignificantDigits": 3,
+                "maximumFractionDigits": 2
+              }
+            }
+          }
+        },
+        "mapSettings": {
+          "locInfo": "AzureResource",
+          "sizeSettings": "PreTaxCost",
+          "sizeAggregation": "Sum",
+          "legendMetric": "PreTaxCost",
+          "legendAggregation": "Sum",
+          "itemColorSettings": {
+            "type": "heatmap",
+            "colorAggregation": "Sum",
+            "nodeColorField": "PreTaxCost",
+            "heatmapPalette": "greenRed"
+          },
+          "locInfoColumn": "ResourceId"
+        }
+      },
+      "conditionalVisibility": {
+        "parameterName": "ResourceGroup",
+        "comparison": "isNotEqualTo"
+      },
+      "name": "query - 3"
+    }
+  ],
+  "fallbackResourceIds": [
+    "azure monitor"
+  ],
+  "$schema": "https://github.com/Microsoft/Application-Insights-Workbooks/blob/master/schema/workbook.json"
+}
