@@ -100,23 +100,23 @@ namespace AzureCost_to_LogAnalytics
             {
               sSubscriptionName = "";
             }
-            string sResourceGroup;
+            string sResourceGroupName;
             try
             {
-              sResourceGroup = Convert.ToString(row[5]);
+              sResourceGroupName = Convert.ToString(row[5]);
             }
             catch
             {
-              sResourceGroup = "";
+              sResourceGroupName = "";
             }
 
             if (i == 0)
             {
-              jsonResult += $"{{\"PreTaxCost\": {cost},\"Date\": \"{sDate}\",\"ResourceId\": \"{sResourceId}\",\"ResourceType\": \"{sResourceType}\",\"SubscriptionName\": \"{sSubscriptionName}\",\"ResourceGroup\": \"{sResourceGroup}\"}}";
+              jsonResult += $"{{\"PreTaxCost\": {cost},\"Date\": \"{sDate}\",\"ResourceId\": \"{sResourceId}\",\"ResourceType\": \"{sResourceType}\",\"SubscriptionName\": \"{sSubscriptionName}\",\"ResourceGroupName\": \"{sResourceGroupName}\"}}";
             }
             else
             {
-              jsonResult += $",{{\"PreTaxCost\": {cost},\"Date\": \"{sDate}\",\"ResourceId\": \"{sResourceId}\",\"ResourceType\": \"{sResourceType}\",\"SubscriptionName\": \"{sSubscriptionName}\",\"ResourceGroup\": \"{sResourceGroup}\"}}";
+              jsonResult += $",{{\"PreTaxCost\": {cost},\"Date\": \"{sDate}\",\"ResourceId\": \"{sResourceId}\",\"ResourceType\": \"{sResourceType}\",\"SubscriptionName\": \"{sSubscriptionName}\",\"ResourceGroupName\": \"{sResourceGroupName}\"}}";
             }
           }
           catch
@@ -195,7 +195,7 @@ namespace AzureCost_to_LogAnalytics
                                 'type': 'dimension'
                             },
                             {
-                                'name': 'ResourceGroup',
+                                'name': 'ResourceGroupName',
                                 'type': 'dimension'
                             }
                         ]
@@ -264,24 +264,24 @@ namespace AzureCost_to_LogAnalytics
               {
                 sSubscriptionName = "";
               }
-              string sResourceGroup;
+              string sResourceGroupName;
               try
               {
-                sResourceGroup = Convert.ToString(row[5]);
+                sResourceGroupName = Convert.ToString(row[5]);
               }
               catch
               {
-                sResourceGroup = "";
+                sResourceGroupName = "";
               }
 
 
               if (i == 0)
               {
-                jsonResult += $"{{\"PreTaxCost\": {cost},\"Date\": \"{sDate}\",\"ResourceId\": \"{sResourceId}\",\"ResourceType\": \"{sResourceType}\",\"SubscriptionName\": \"{sSubscriptionName}\",\"ResourceGroup\": \"{sResourceGroup}\"}}";
+                jsonResult += $"{{\"PreTaxCost\": {cost},\"Date\": \"{sDate}\",\"ResourceId\": \"{sResourceId}\",\"ResourceType\": \"{sResourceType}\",\"SubscriptionName\": \"{sSubscriptionName}\",\"ResourceGroupName\": \"{sResourceGroupName}\"}}";
               }
               else
               {
-                jsonResult += $",{{\"PreTaxCost\": {cost},\"Date\": \"{sDate}\",\"ResourceId\": \"{sResourceId}\",\"ResourceType\": \"{sResourceType}\",\"SubscriptionName\": \"{sSubscriptionName}\",\"ResourceGroup\": \"{sResourceGroup}\"}}";
+                jsonResult += $",{{\"PreTaxCost\": {cost},\"Date\": \"{sDate}\",\"ResourceId\": \"{sResourceId}\",\"ResourceType\": \"{sResourceType}\",\"SubscriptionName\": \"{sSubscriptionName}\",\"ResourceGroupName\": \"{sResourceGroupName}\"}}";
               }
             }
             catch
