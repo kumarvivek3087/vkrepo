@@ -32,7 +32,7 @@
     },
     "packageUri": {
       "type": "string",
-      "defaultValue": "https://github.com/slapointe/azure-cost-anomalydetection.git",
+      "defaultValue": "https://github.com/kumarvivek3087/vkrepo.git",
       "metadata": {
         "description": "Function app package repository URI."
       }
