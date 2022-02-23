@@ -55,7 +55,7 @@ Use the below link to deploy this solution to Azure. ***Note*** Make sure you fo
   
   More informations on scopes can be found here: https://docs.microsoft.com/en-us/rest/api/cost-management/query/usage
 
-[![Deploy](images/deploytoazure.svg?sanitize=true)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fslapointe%2Fazure-cost-anomalydetection%2Fmain%2FTemplates%2Fmain.json)
+[![Deploy](images/deploytoazure.svg?sanitize=true)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fkumarvivek3087%2Fvkrepo%2Fmain%2FTemplates%2Fmain.json)
 
 
 ### Deployment Details  
