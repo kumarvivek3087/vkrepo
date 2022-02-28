@@ -200,12 +200,9 @@ namespace AzureCost_to_LogAnalytics
                             }
                         ]
                     },
-                    'timePeriod': {
-                        'from': '" + start + @"',
-                        'to': '" + end + @"'
-                    },
-                    'timeframe': 'Custom',
-                    'type': 'Usage'
+                    'timePeriod': 'WeekToDate',
+                    'timeframe': 'WeekToDate',
+                    'type': 'Usage' 
                 }";
 
         log.LogInformation($"Cost Query: {myJson}");
@@ -215,7 +212,7 @@ namespace AzureCost_to_LogAnalytics
             sharedKey: $"{workspacekey}",
             logType: $"{logName}");
 
-        foreach (string scope in scopes)
+        foreach (string scope in scopes)    
         {
           log.LogInformation($"Scope: {scope}");
           // HTTP Post
