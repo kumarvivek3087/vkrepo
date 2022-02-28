@@ -200,9 +200,12 @@ namespace AzureCost_to_LogAnalytics
                             }
                         ]
                     },
-                    'timePeriod': 'WeekToDate',
-                    'timeframe': 'WeekToDate',
-                    'type': 'Usage' 
+                    'timePeriod': {
+                        'from': '" + start + @"',
+                        'to': '" + end + @"'
+                    },
+                    'timeframe': 'Custom',
+                    'type': 'Usage'
                 }";
 
         log.LogInformation($"Cost Query: {myJson}");
